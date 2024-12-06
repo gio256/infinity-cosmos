@@ -21,4 +21,9 @@ lemma δ_one_two : δ (n := 1) 2 = mkOfSucc 0 := by
   ext i
   fin_cases i <;> rfl
 
+lemma diag_two_mkOfLeComp (n : Fin 4) (h : n ≤ 3) :
+    diag 2 ≫ mkOfLeComp 0 n 3 (by simp) h = diag 3 := by
+  ext i
+  fin_cases i <;> rfl
+
 end SimplexCategory

@@ -67,6 +67,40 @@ instance (S : SSet.{u}) [StrictSegal S] : Category.{u} (OneTruncation S) where
       apply congr_arg (S.σ 0)
       exact f.property.right.symm
   assoc {W X Y Z} f g h := by
-    sorry
+    apply Subtype.ext
+    let p : Path S 3 := {
+      vertex := fun | 0 => W | 1 => X | 2 => Y | 3 => Z
+      arrow := fun | 0 => f.val | 1 => g.val | 2 => h.val
+      arrow_src := by
+        intro i
+        fin_cases i
+        · exact f.property.left
+        · exact g.property.left
+        · exact h.property.left
+      arrow_tgt := by
+        intro i
+        fin_cases i
+        · exact f.property.right
+        · exact g.property.right
+        · exact h.property.right
+    }
+    trans spineToDiagonal p
+    · rw [assoc_left p]
+      simp
+      apply congr_arg spineToDiagonal
+      ext i
+      fin_cases i
+      · apply congr_arg spineToDiagonal
+        ext j
+        fin_cases j <;> rfl
+      · rfl
+    · rw [assoc_right p]
+      apply congr_arg spineToDiagonal
+      ext i
+      fin_cases i
+      · rfl
+      · apply congr_arg spineToDiagonal
+        ext j
+        fin_cases j <;> rfl
 
 end CategoryTheory.SSet
