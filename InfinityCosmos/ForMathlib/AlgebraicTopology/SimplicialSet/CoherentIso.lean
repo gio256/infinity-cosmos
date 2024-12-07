@@ -53,6 +53,7 @@ def fromIso {X Y : C} (e : X ≅ Y) : WalkingIso ⥤ C where
     | zero, one,  _ => e.hom
     | one,  zero, _ => e.inv
     | one,  one,  _ => 𝟙 _
+  map_comp := sorry
 
 
 def equiv : (WalkingIso ⥤ C) ≃ Σ (X : C) (Y : C), (X ≅ Y) where
