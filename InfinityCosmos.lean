@@ -6,6 +6,7 @@ import InfinityCosmos.ForMathlib.AlgebraicTopology.SimplicialCategory.Cotensors
 import InfinityCosmos.ForMathlib.AlgebraicTopology.SimplicialCategory.IsConicalTerminal
 import InfinityCosmos.ForMathlib.AlgebraicTopology.SimplicialCategory.Limits
 import InfinityCosmos.ForMathlib.AlgebraicTopology.SimplicialSet.CoherentIso
+import InfinityCosmos.ForMathlib.AlgebraicTopology.SimplicialSet.Delta
 import InfinityCosmos.ForMathlib.AlgebraicTopology.SimplicialSet.Homotopy
 import InfinityCosmos.ForMathlib.AlgebraicTopology.SimplicialSet.HomotopyCat
 import InfinityCosmos.ForMathlib.AlgebraicTopology.SimplicialSet.Monoidal
