@@ -9,7 +9,7 @@ open CategoryTheory Simplicial SimplexCategory Limits
 open Fintype in
 lemma not_surjective_of_card_lt {α β : Type*} [Fintype α] [Fintype β]
     (f : α → β) (h : card α < card β) : ¬Function.Surjective f :=
-  fun hs ↦ Nat.lt_le_asymm h <| card_le_of_surjective f hs
+  Nat.lt_le_asymm h ∘ card_le_of_surjective f
 
 lemma δ_not_surjective {n : ℕ} (i : Fin (n + 2)) :
     ¬Function.Surjective (δ i).toOrderHom :=
@@ -26,6 +26,58 @@ def beta {n : ℕ} {m : SimplexCategoryᵒᵖ} (α : Δ[n + 1].obj m)
     (i : Fin (n + 2)) : Δ[n].obj m :=
   standardSimplex.map (σ (Fin.predAbove 0 i)) |>.app m α
   /- objEquiv [n] m |>.symm <| factor_δ (m := m.unop.len) (objEquiv [n + 1] m α) i -/
+
+section PredAbove
+open Fin
+
+variable {n : ℕ}
+
+lemma predAbove_eq_lt_iff {p j : Fin n} (i : Fin (n + 1)) (h : j < p) :
+    p.predAbove i = j ↔ i = j.castSucc := by
+  by_cases hi : p.castSucc < i
+  · apply Iff.intro <;> rintro rfl
+    · rw [predAbove_of_castSucc_lt _ _ hi] at h
+      exact False.elim <| not_lt.mpr ((le_pred_iff _).mpr hi) h
+    · exact False.elim <| not_le.mpr hi (le_of_lt h)
+  · rw [predAbove_of_le_castSucc _ _ (not_lt.mp hi)]
+    apply castPred_eq_iff_eq_castSucc
+
+lemma predAbove_eq_iff (p : Fin n) (i : Fin (n + 1)) :
+    p.predAbove i = p ↔ i = p.castSucc ∨ i = p.succ := by
+  apply Iff.intro
+  · intro hp
+    by_cases hi : p.castSucc < i
+    · rw [predAbove_of_castSucc_lt _ _ hi] at hp
+      simp only [← hp, succ_pred, or_true]
+    · rw [predAbove_of_le_castSucc _ _ (not_lt.mp hi)] at hp
+      simp only [← hp, castSucc_castPred, true_or]
+  · rintro (rfl | rfl)
+    · rw [predAbove_castSucc_self]
+    · rw [predAbove_succ_self]
+
+lemma predAbove_eq_gt_iff {p j : Fin n} (i : Fin (n + 1)) (h : p < j) :
+    p.predAbove i = j ↔ i = j.succ := by
+  by_cases hi : p.castSucc < i
+  . rw [predAbove_of_castSucc_lt _ _ hi]
+    apply pred_eq_iff_eq_succ
+  · apply Iff.intro <;> rintro rfl
+    · rw [predAbove_of_le_castSucc _ _ (not_lt.mp hi)] at h
+      exact False.elim <| hi <| (lt_castPred_iff _).mp h
+    · exact False.elim <| lt_asymm h <| succ_le_castSucc_iff.mp <| not_lt.mp hi
+
+end PredAbove
+
+lemma σ_eq_lt_iff {n : ℕ} (i k : Fin (n + 1)) (h :  k < i)
+    (j : Fin (n + 2)) : (σ i).toOrderHom j = k ↔ j = k.castSucc :=
+  predAbove_eq_lt_iff j h
+
+lemma σ_eq_iff {n : ℕ} (i : Fin (n + 1)) (j : Fin (n + 2)) :
+    (σ i).toOrderHom j = i ↔ j = i.castSucc ∨ j = i.succ :=
+  predAbove_eq_iff i j
+
+lemma σ_eq_gt_iff {n : ℕ} (i k : Fin (n + 1)) (h : i < k) (j : Fin (n + 2)) :
+    (σ i).toOrderHom j = k ↔ j = k.succ :=
+  predAbove_eq_gt_iff j h
 
 def diagram (n : ℕ) : MultispanIndex SSet where
   L := { (i, j) : Fin (n + 2) × Fin (n + 3) | i.castSucc < j }
@@ -59,21 +111,55 @@ abbrev cocone (n : ℕ) : Multicofork (diagram n) := by
     rw [← δ_comp_δ' h]
     rfl
 
+open Fin standardSimplex Opposite in
 lemma beta_pi {n : ℕ} (X : Multicofork (diagram n))
     {m : SimplexCategoryᵒᵖ} (α : Δ[n + 2].obj m)
     (i : Fin (n + 3))  (hi : ∀ x, (asOrderHom α) x ≠ i)
     (j : Fin (n + 3))  (hj : ∀ x, (asOrderHom α) x ≠ j) :
     (X.π i).app m (beta α i) = (X.π j).app m (beta α j) := by
-  obtain heq | hij | hji : i = j ∨ i < j ∨ j < i := by omega
-  · subst heq
-    rfl
+  obtain rfl | hij | hji : i = j ∨ i < j ∨ j < i := by omega
+  · rfl
   · let i' : Fin (n + 2) := i.castPred <| Fin.ne_last_of_lt hij
     have hi' : i = i'.castSucc := by aesop
     let ij : { (i, j) : Fin (n + 2) × Fin (n + 3) | i.castSucc < j } :=
       ⟨(i', j), hij⟩
     let γ := beta (beta α j) i'
-    have hv : ((diagram n).fst ij).app m γ = beta α i := by sorry
-    have hu : ((diagram n).snd ij).app m γ = beta α j := by sorry
+    have hu : ((diagram n).snd ij).app m γ = beta α j := by
+      simp [diagram, γ, beta]
+      simp [standardSimplex, uliftFunctor]
+      rw [Fin.predAbove_zero_of_ne_zero (Fin.ne_zero_of_lt hij)]
+      change factor_δ (m := m.unop.len) (_ ≫ σ _) i' ≫ δ i' = _
+      rw [factor_δ_spec]
+      intro k
+      simp only [comp_toOrderHom, OrderHom.comp_coe, Function.comp_apply]
+      let jp := j.pred (Fin.ne_zero_of_lt hij)
+      have hh : i' ≤ jp :=
+        (castPred_le_pred_iff (ne_last_of_lt hij) (Fin.ne_zero_of_lt hij)).mpr hij
+      obtain hh | hh : i' < jp ∨ i' = jp := Fin.lt_or_eq_of_le hh
+      · simp
+        have := σ_eq_lt_iff jp i' hh (asOrderHom α k)
+        simp [asOrderHom] at this
+        rw [this]
+        exact hi k
+      · simp
+        simp [jp] at hh
+        rw [← hh]
+        have := σ_eq_iff i' (asOrderHom α k)
+        simp [asOrderHom] at this
+        rw [this]
+        intro hn
+        rcases hn with hn | hn
+        · exact hi k hn
+        · rw [hh] at hn
+          simp at hn
+          exact hj k hn
+
+    have hv : ((diagram n).fst ij).app m γ = beta α i := by
+      simp [diagram, γ, beta]
+      simp [standardSimplex, uliftFunctor]
+      rw [Fin.predAbove_zero_of_ne_zero (Fin.ne_zero_of_lt hij)]
+      sorry
+
     rw [← hu, ← hv]
     rw [← types_comp_apply _ ((X.π _).app m), ← types_comp_apply _ ((X.π _).app m)]
     rw [← NatTrans.comp_app, ← NatTrans.comp_app]
