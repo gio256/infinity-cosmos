@@ -24,8 +24,16 @@ lemma σ_not_injective {n : ℕ} (i : Fin (n + 1)) :
     ¬Function.Injective (σ i).toOrderHom :=
   not_injective_of_card_lt _ (by simp)
 
-noncomputable def boundary.skips {n : ℕ} {m : SimplexCategoryᵒᵖ} (α : ∂Δ[n].obj m) :
+namespace boundary
+
+noncomputable def skips {n : ℕ} {m : SimplexCategoryᵒᵖ} (α : ∂Δ[n].obj m) :
     Fin (n + 1) := Classical.choose <| not_forall.mp α.property
+
+lemma skips_spec {n : ℕ} {m : SimplexCategoryᵒᵖ} (α : ∂Δ[n].obj m) :
+    ∀ k : Fin (m.unop.len + 1), asOrderHom α.1 k ≠ skips α :=
+  not_exists.mp <| Classical.choose_spec <| not_forall.mp α.2
+
+end boundary
 
 section PredAbove
 open Fin
@@ -142,7 +150,7 @@ open Fin in
 lemma σ_predAbove_comp_σ_predAbove {n : ℕ} {p : Fin (n + 1)} {i j : Fin (n + 2)}
     (h : i ≤ j) (hp : p.castSucc = i ∨ p.castSucc ≠ j) :
     σ (p.castSucc.predAbove j.succ) ≫ σ (p.predAbove i) =
-      σ (p.predAbove i).castSucc ≫ σ (p.predAbove  j) := by
+      σ (p.predAbove i).castSucc ≫ σ (p.predAbove j) := by
   rw [σ_comp_σ (predAbove_le_predAbove p h)]
   rcases hp with (rfl | hp)
   · rw [predAbove_castSucc_self, predAbove_succ_of_le _ _ h]
@@ -157,7 +165,7 @@ lemma σ_predAbove_comp_σ_predAbove {n : ℕ} {p : Fin (n + 1)} {i j : Fin (n +
 
 open Fin in
 @[reassoc]
-lemma σ_predAbove_comp_σ_predAbove_zero {n : ℕ} {i j : Fin (n + 2)} (h : i ≤ j) :
+lemma σ_predAbove_zero_comp_σ_predAbove_zero {n : ℕ} {i j : Fin (n + 2)} (h : i ≤ j) :
     σ (predAbove 0 j.succ) ≫ σ (predAbove 0 i) =
       σ (predAbove 0 i.castSucc) ≫ σ (predAbove 0 j) := by
   rw [← castSucc_zero, castSucc_predAbove_castSucc,
@@ -165,6 +173,13 @@ lemma σ_predAbove_comp_σ_predAbove_zero {n : ℕ} {i j : Fin (n + 2)} (h : i �
   cases' i using cases with i
   · exact Or.inl (by rfl)
   · exact Or.inr (ne_zero_of_lt (castSucc_lt_iff_succ_le.mpr h)).symm
+
+lemma SimplexCategory.factor_δ_δ_eq {n : ℕ} (j : Fin (n+2)) :
+    factor_δ (δ j) j = 𝟙 _ := by
+  dsimp only [factor_δ]
+  cases' j using Fin.cases with j
+  · rw [δ_comp_σ_self' (by rfl)]
+  · rw [Fin.predAbove_zero_succ, δ_comp_σ_succ]
 
 namespace standardSimplex
 
@@ -175,17 +190,22 @@ def factor_δ {n : ℕ} {m : SimplexCategoryᵒᵖ} (α : Δ[n + 1].obj m)
 lemma factor_δ_spec {n : ℕ} {m : SimplexCategoryᵒᵖ} (α : Δ[n + 1].obj m)
     (j : Fin (n + 2)) (hj : ∀ k, asOrderHom α k ≠ j) :
     (standardSimplex.map (δ j)).app m (factor_δ α j) = α := by
-  simp only [standardSimplex, uliftFunctor, Functor.comp_obj,
-    SimplicialObject.whiskering_obj_obj_obj, yoneda_obj_obj, uliftFunctor_obj,
-    Functor.comp_map, SimplicialObject.whiskering_obj_map_app, uliftFunctor_map,
-    yoneda_map_app]
   change { down := SimplexCategory.factor_δ (m := m.unop.len) _ j ≫ δ j } = α
   rw [SimplexCategory.factor_δ_spec _ j hj]
   rfl
 
+lemma factor_δ_δ_eq {n : ℕ} {m : SimplexCategoryᵒᵖ}
+    (α : Δ[n].obj m) (j : Fin (n + 2)) :
+    factor_δ ((standardSimplex.map (δ j)).app m α) j = α := by
+  dsimp only [factor_δ]
+  rw [← FunctorToTypes.comp, ← Functor.map_comp]
+  change (standardSimplex.map (SimplexCategory.factor_δ _ _)).app _ _ = _
+  rw [SimplexCategory.factor_δ_δ_eq, CategoryTheory.Functor.map_id]
+  rfl
+
 end standardSimplex
 
-def factor_δ₂ {n : ℕ} {m : SimplexCategoryᵒᵖ} (α : Δ[n + 2].obj m)
+abbrev factor_δ₂ {n : ℕ} {m : SimplexCategoryᵒᵖ} (α : Δ[n + 2].obj m)
     (i : Fin (n + 2)) (j : Fin (n + 3)) : Δ[n].obj m :=
   standardSimplex.factor_δ (standardSimplex.factor_δ α j) i
 
@@ -195,7 +215,7 @@ lemma δ_factor_δ₂_le {n : ℕ} {m : SimplexCategoryᵒᵖ} (α : Δ[n + 2].o
     (hj : ∀ x, (asOrderHom α) x ≠ j.succ) :
     (standardSimplex.map (δ i)).app m (factor_δ₂ α i j.succ) =
       standardSimplex.factor_δ α j.succ := by
-  simp only [factor_δ₂, standardSimplex.factor_δ, predAbove_zero_succ]
+  simp only [standardSimplex.factor_δ, predAbove_zero_succ]
   apply standardSimplex.factor_δ_spec
   intro k; specialize hi k; specialize hj k
   simp only [σ, asOrderHom, yoneda_obj_obj, standardSimplex, uliftFunctor,
@@ -214,11 +234,11 @@ lemma δ_factor_δ₂_ge {n : ℕ} {m : SimplexCategoryᵒᵖ} (α : Δ[n + 2].o
     (hj : ∀ x, (asOrderHom α) x ≠ j.succ) :
     (standardSimplex.map (δ j)).app m (factor_δ₂ α i j.succ) =
       standardSimplex.factor_δ α i.castSucc := by
-  simp only [factor_δ₂, standardSimplex.factor_δ, standardSimplex, uliftFunctor,
+  simp only [standardSimplex.factor_δ, standardSimplex, uliftFunctor,
     Functor.comp_obj, SimplicialObject.whiskering_obj_obj_obj, yoneda_obj_obj,
     uliftFunctor_obj, Functor.comp_map, SimplicialObject.whiskering_obj_map_app,
     uliftFunctor_map, yoneda_map_app, Category.assoc, ULift.up_inj]
-  rw [σ_predAbove_comp_σ_predAbove_zero_assoc h]
+  rw [σ_predAbove_zero_comp_σ_predAbove_zero_assoc h]
   change factor_δ (m := m.unop.len) (_ ≫ σ _) _ ≫ δ _ = _
   apply factor_δ_spec
   intro k; specialize hi k; specialize hj k
@@ -259,15 +279,15 @@ lemma π_factor_δ_lt {n : ℕ} (X : Multicofork (diagram n)) {m : SimplexCatego
   rw [← Fin.castSucc_castPred i hlast] at hi ⊢
   rw [← Fin.succ_pred j h0] at hj ⊢
   rw [← δ_factor_δ₂_le α hle hi hj, ← δ_factor_δ₂_ge α hle hi hj,
-    ← types_comp_apply _ ((X.π _).app m), ← types_comp_apply _ ((X.π _).app m),
-    ← NatTrans.comp_app, ← NatTrans.comp_app, Fin.succ_pred]
+    ← FunctorToTypes.comp, ← FunctorToTypes.comp, Fin.succ_pred]
   change ((diagram n).fst ij ≫ X.π _).app m _ =
     ((diagram n).snd ij ≫ X.π _).app m _
-  rw [X.condition ij]
+  rw [X.condition]
 
 lemma π_factor_δ {n : ℕ} (X : Multicofork (diagram n))
-    {m : SimplexCategoryᵒᵖ} (α : Δ[n + 2].obj m) {i j : Fin (n + 3)}
-    (hi : ∀ x, asOrderHom α x ≠ i) (hj : ∀ x, asOrderHom α x ≠ j) :
+    {m : SimplexCategoryᵒᵖ} (α : Δ[n + 2].obj m)
+    (i : Fin (n + 3)) (hi : ∀ x, asOrderHom α x ≠ i)
+    (j : Fin (n + 3)) (hj : ∀ x, asOrderHom α x ≠ j) :
     (X.π i).app m (standardSimplex.factor_δ α i) =
       (X.π j).app m (standardSimplex.factor_δ α j) := by
   rcases lt_trichotomy i j with (h | rfl | h)
@@ -281,80 +301,43 @@ abbrev cocone (n : ℕ) : Multicofork (diagram n) := by
     refine {
       app := fun m α ↦ ⟨standardSimplex.map (δ k) |>.app m α, ?_⟩
       naturality := fun a b f ↦ rfl }
-    intro h
-    exact δ_not_surjective k <| Function.Surjective.of_comp h
+    apply δ_not_surjective k ∘ Function.Surjective.of_comp
   · intro ⟨⟨i, j⟩, h⟩
-    simp only [diagram, Set.coe_setOf, Set.mem_setOf_eq]
-    ext a α
-    rw [NatTrans.comp_app, NatTrans.comp_app]
+    ext m α
     apply Subtype.ext
-    simp only [types_comp_apply]
-    rw [← types_comp_apply ((standardSimplex.map _).app _)
-      ((standardSimplex.map _).app _)]
-    rw [← NatTrans.comp_app]
-    rw [← Functor.map_comp]
-    rw [← δ_comp_δ' h]
+    rw [NatTrans.comp_app, NatTrans.comp_app]
+    dsimp only [diagram, Set.coe_setOf, Set.mem_setOf_eq, types_comp_apply]
+    rw [← FunctorToTypes.comp, ← Functor.map_comp, ← δ_comp_δ' h]
     rfl
 
-open Opposite standardSimplex boundary in
-noncomputable def colim (n : ℕ) : IsColimit (cocone n) := by
+open standardSimplex boundary in
+noncomputable def isColimit (n : ℕ) : IsColimit (cocone n) := by
   refine Multicofork.IsColimit.mk (cocone n) ?_ ?_ ?_
   · intro X
-    refine { app := ?_, naturality := ?_ }
-    · intro m α
-      exact X.π (skips α) |>.app m <| standardSimplex.factor_δ α.1 (skips α)
-    · intro a b f
-      ext α
-      simp [diagram, MultispanIndex.multispan, boundary]
-      rw [← types_comp_apply ((X.π _).app a) (X.pt.map f)]
-      rw [← (X.π _).naturality]
-      rw [π_factor_δ (j := skips α) X _]
-      · rfl
-      · intro x
-        have h := Classical.choose_spec <| not_forall.mp <| boundary.proof_1 (n + 2) f α
-        simp only [skips, not_exists] at h ⊢
-        apply h
-      · intro x
-        have h := Classical.choose_spec <| not_forall.mp <| α.2
-        simp only [skips, not_exists] at h ⊢
-        apply h
+    refine {
+      app := fun m α ↦ X.π (skips α) |>.app m <| factor_δ α.1 (skips α),
+      naturality := ?_ }
+    intro a b f
+    ext α
+    dsimp only [Multicofork.ofπ_pt, types_comp_apply] at α ⊢
+    rw [π_factor_δ X _ _ _ (skips α)]
+    · rw [← types_comp_apply _ (X.pt.map f), ← NatTrans.naturality]
+      rfl
+    · intro k; apply skips_spec α
+    · exact skips_spec <| ∂Δ[n + 2].map f α
   · intro X k
-    simp [diagram, MultispanIndex.multispan, Multicofork.π] at k ⊢
     ext m α
-    rw [NatTrans.comp_app]
-    simp only [types_comp_apply]
-    rw [Multicofork.π_eq_app_right, Multicofork.π_eq_app_right]
-    rw [π_factor_δ (j := k) X _]
-    · simp [standardSimplex.factor_δ, standardSimplex, uliftFunctor]
-      cases' k using Fin.cases with k
-      · rw [Fin.predAbove_right_zero, δ_comp_σ_self' (by rfl), Category.comp_id]
-        rfl
-      · rw [Fin.predAbove_zero_succ, δ_comp_σ_succ, Category.comp_id]
-        rfl
-    · have h := Classical.choose_spec <| not_forall.mp <| cocone.proof_1 n k m α
-      simp only [skips, not_exists] at h ⊢
-      exact h
-    · intro x
-      exact Fin.succAbove_ne k _
-  · intro X
-    simp [diagram, MultispanIndex.multispan]
-    intro f h
+    dsimp only [diagram] at k α
+    change (X.π _).app _ (factor_δ ((standardSimplex.map _).app _ _) _) = _
+    rw [π_factor_δ X _ _ _ k]
+    · rw [standardSimplex.factor_δ_δ_eq]
+    · intro j; exact Fin.succAbove_ne k _
+    · exact skips_spec <| cocone n |>.π k |>.app m α
+  · intro X f h
     ext m α
-    simp
-    rw [← h (skips α)]
-    rw [NatTrans.comp_app]
+    simp only [Multicofork.ofπ_pt, ← h (skips α)]
     apply congr_arg
-    simp [cocone, Multicofork.π, standardSimplex.factor_δ, boundary]
-    ext
-    simp only
-    rw [← types_comp_apply ((standardSimplex.map _).app m) ((standardSimplex.map _).app m)]
-    rw [← NatTrans.comp_app]
-    rw [← Functor.map_comp]
-    simp [standardSimplex, uliftFunctor]
-    have hs := Classical.choose_spec <| not_forall.mp <| α.2
-    simp [← ne_eq] at hs
-    simp [skips]
-    erw [SimplexCategory.factor_δ_spec _ _ hs]
-    rfl
+    apply Subtype.ext
+    exact standardSimplex.factor_δ_spec _ _ (skips_spec α) |>.symm
 
 end SSet
