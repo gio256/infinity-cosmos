@@ -1,10 +1,24 @@
 import Mathlib.AlgebraicTopology.SimplicialSet.Basic
+import Mathlib.Data.Fintype.Card
 
 universe v u
 
 namespace SSet
 
 open CategoryTheory Simplicial SimplexCategory Limits
+
+/- namespace Fintype -/
+/- variable {α β : Type*} [Fintype α] [Fintype β] -/
+/- open Function -/
+
+/- theorem not_injective_of_card_lt (f : α → β) (h : card β < card α) : -/
+/-     ¬Injective f := Nat.lt_le_asymm h ∘ card_le_of_injective f -/
+
+/- theorem not_surjective_of_card_lt (f : α → β) (h : card α < card β) : -/
+/-     ¬Surjective f := Nat.lt_le_asymm h ∘ card_le_of_surjective f -/
+
+/- end Fintype -/
+
 
 open Fintype in
 lemma not_surjective_of_card_lt {α β : Type*} [Fintype α] [Fintype β]
@@ -43,81 +57,71 @@ lemma predAbove_eq_lt_iff {p j : Fin n} (h : j < p) (i : Fin (n + 1)) :
     p.predAbove i = j ↔ i = j.castSucc := by
   by_cases hi : p.castSucc < i
   · apply Iff.intro <;> rintro rfl
-    · rw [predAbove_of_castSucc_lt _ _ hi] at h
-      exact False.elim <| not_lt.mpr ((le_pred_iff _).mpr hi) h
+    · apply False.elim ∘ not_lt.mpr ((le_pred_iff _).mpr hi)
+      exact predAbove_of_castSucc_lt p i hi ▸ h
     · exact False.elim <| not_le.mpr hi <| le_of_lt h
-  · rw [predAbove_of_le_castSucc _ _ (not_lt.mp hi)]
+  · rw [predAbove_of_le_castSucc p i (not_lt.mp hi)]
     apply castPred_eq_iff_eq_castSucc
 
-lemma predAbove_eq_iff (p : Fin n) (i : Fin (n + 1)) :
+lemma predAbove_eq_self_iff (p : Fin n) (i : Fin (n + 1)) :
     p.predAbove i = p ↔ i = p.castSucc ∨ i = p.succ := by
-  apply Iff.intro
-  · intro hp
-    by_cases hi : p.castSucc < i
-    · rw [predAbove_of_castSucc_lt _ _ hi] at hp
-      simp only [← hp, succ_pred, or_true]
-    · rw [predAbove_of_le_castSucc _ _ (not_lt.mp hi)] at hp
-      simp only [← hp, castSucc_castPred, true_or]
-  · rintro (rfl | rfl)
-    · rw [predAbove_castSucc_self]
-    · rw [predAbove_succ_self]
+  apply Iff.intro <;> intro hp
+  · by_cases hi : p.castSucc < i
+    · apply Or.inr ∘ (pred_eq_iff_eq_succ _).mp
+      exact predAbove_of_castSucc_lt p i hi ▸ hp
+    · apply Or.inl ∘ (castPred_eq_iff_eq_castSucc i _ p).mp
+      exact predAbove_of_le_castSucc p i (not_lt.mp hi) ▸ hp
+  · rcases hp with (rfl | rfl)
+    · exact predAbove_castSucc_self p
+    · exact predAbove_succ_self p
 
 lemma predAbove_eq_gt_iff {p j : Fin n} (h : p < j) (i : Fin (n + 1)) :
     p.predAbove i = j ↔ i = j.succ := by
   by_cases hi : p.castSucc < i
-  . rw [predAbove_of_castSucc_lt _ _ hi]
-    apply pred_eq_iff_eq_succ
+  . exact predAbove_of_castSucc_lt p i hi ▸ pred_eq_iff_eq_succ _
   · apply Iff.intro <;> rintro rfl
-    · rw [predAbove_of_le_castSucc _ _ (not_lt.mp hi)] at h
-      exact False.elim <| hi <| lt_castPred_iff _ |>.mp h
+    · apply False.elim ∘ hi ∘ (lt_castPred_iff _).mp
+      exact predAbove_of_le_castSucc p i (not_lt.mp hi) ▸ h
     · exact False.elim <| lt_asymm h <| succ_le_castSucc_iff.mp <| not_lt.mp hi
 
 lemma predAbove_le_predAbove {n : ℕ} (p : Fin n) {i j : Fin (n + 1)}
     (h : i ≤ j) : p.predAbove i ≤ p.predAbove j := by
   by_cases hi : p.castSucc < i
-  · rw [predAbove_of_castSucc_lt _ _ (lt_of_lt_of_le hi h),
-      predAbove_of_castSucc_lt _ _ hi]
+  · rw [predAbove_of_castSucc_lt p j (lt_of_lt_of_le hi h),
+      predAbove_of_castSucc_lt p i hi]
     exact pred_le_pred_iff.mpr h
   · have hi := not_lt.mp hi
-    rw [predAbove_of_le_castSucc _ _ hi]
+    rw [predAbove_of_le_castSucc p i hi]
     by_cases hj : p.castSucc < j
-    · rw [predAbove_of_castSucc_lt _ _ hj]
+    · rw [predAbove_of_castSucc_lt p j hj]
       exact castPred_le_pred_iff _ _ |>.mpr (lt_of_le_of_lt hi hj)
-    · rw [predAbove_of_le_castSucc _ _ (not_lt.mp hj)]
-      exact h
+    · exact predAbove_of_le_castSucc p j (not_lt.mp hj) ▸ h
 
-lemma predAbove_le {n : ℕ} (p : Fin n) (i : Fin (n + 1)) :
+lemma castSucc_predAbove_le {n : ℕ} (p : Fin n) (i : Fin (n + 1)) :
     (p.predAbove i).castSucc ≤ i := by
   by_cases h : p.castSucc < i
-  · rw [predAbove_of_castSucc_lt _ _ h, castSucc_pred_eq_pred_castSucc]
+  · rw [predAbove_of_castSucc_lt p i h, castSucc_pred_eq_pred_castSucc]
     exact le_of_lt <| pred_castSucc_lt _
-  · rw [predAbove_of_le_castSucc _ _ (not_lt.mp h), castSucc_castPred]
+  · rw [predAbove_of_le_castSucc p i (not_lt.mp h), castSucc_castPred]
 
 lemma predAbove_lt_iff_lt_castSucc (p : Fin n) (i : Fin (n + 1)) :
     p.predAbove i < p ↔ i < p.castSucc := by
-  apply Iff.intro
-  · intro h
-    by_cases hi : p.castSucc < i
-    · rw [predAbove_of_castSucc_lt _ _ hi] at h
-      exact False.elim <| not_lt.mpr ((le_pred_iff _).mpr hi) h
-    · rw [predAbove_of_le_castSucc _ _ (not_lt.mp hi)] at h
-      exact h
-  · intro h
-    rw [predAbove_of_le_castSucc _ _ (le_of_lt h)]
-    exact h
+  apply Iff.intro <;> intro h
+  · by_cases hi : p.castSucc < i
+    · apply False.elim ∘ not_lt.mpr ((le_pred_iff _).mpr hi)
+      exact predAbove_of_castSucc_lt p i hi ▸ h
+    · apply castPred_lt_iff _ |>.mp
+      exact predAbove_of_le_castSucc p i (not_lt.mp hi) ▸ h
+  · exact predAbove_of_le_castSucc p i (le_of_lt h) ▸ h
 
 lemma lt_predAbove_iff_succ_lt (p : Fin n) (i : Fin (n + 1)) :
     p < p.predAbove i ↔ p.succ < i := by
-  apply Iff.intro
-  · intro h
-    by_cases hi : p.castSucc < i
-    · rw [predAbove_of_castSucc_lt _ _ hi] at h
-      exact lt_pred_iff (ne_zero_of_lt hi) |>.mp h
-    · rw [predAbove_of_le_castSucc _ _ (not_lt.mp hi)] at h
-      exact False.elim <| hi h
-  · intro h
-    rw [predAbove_of_succ_le _ _ (le_of_lt h)]
-    exact lt_pred_iff (ne_zero_of_lt h) |>.mpr h
+  apply Iff.intro <;> intro h
+  · by_cases hi : p.castSucc < i
+    · exact lt_pred_iff _ |>.mp <| predAbove_of_castSucc_lt p i hi ▸ h
+    · apply False.elim ∘ hi ∘ (lt_castPred_iff _).mp
+      exact predAbove_of_le_castSucc p i (not_lt.mp hi) ▸ h
+  · exact predAbove_of_succ_le p i (le_of_lt h) ▸ lt_pred_iff _ |>.mpr h
 
 end PredAbove
 
@@ -128,40 +132,56 @@ variable {n : ℕ} {p : Fin (n + 1)}
 lemma succAbove_eq_lt_iff {j : Fin (n + 1)} (h : j < p) (i : Fin n) :
     p.succAbove i = j ↔ i.castSucc = j := by
   by_cases hi : i.castSucc < p
-  · rw [succAbove_of_castSucc_lt _ _ hi]
+  · exact succAbove_of_castSucc_lt _ _ hi ▸ Iff.refl _
   · apply Iff.intro <;> rintro rfl
-    · rw [succAbove_of_le_castSucc _ _ (not_lt.mp hi)] at h
-      exact False.elim <| hi <| lt_succ |>.trans h
+    · apply False.elim ∘ hi
+      exact lt_succ.trans <| succAbove_of_le_castSucc p i (not_lt.mp hi) ▸ h
     · exact False.elim <| hi h
 
 lemma succAbove_eq_gt_iff {j : Fin (n + 1)} (h : p < j) (i : Fin n) :
     p.succAbove i = j ↔ i.succ = j := by
   by_cases hi : i.castSucc < p
   · apply Iff.intro <;> rintro rfl
-    · rw [succAbove_of_castSucc_lt _ _ hi] at h
-      exact False.elim <| lt_asymm hi h
+    · exact False.elim <| lt_asymm hi <| succAbove_of_castSucc_lt p i hi ▸ h
     · exact False.elim <| (not_lt.mpr (castSucc_lt_iff_succ_le.mp hi)) h
-  · rw [succAbove_of_le_castSucc _ _ (not_lt.mp hi)]
+  · exact succAbove_of_le_castSucc _ _ (not_lt.mp hi) ▸ Iff.refl _
+
+lemma castSucc_le_succAbove (i : Fin n) : i.castSucc ≤ p.succAbove i := by
+  by_cases h : i.castSucc < p
+  · exact succAbove_of_castSucc_lt p i h ▸ le_rfl
+  · exact succAbove_of_le_castSucc p i (not_lt.mp h) ▸ castSucc_le_succ i
+
+/-- Given a fixed pivot `p`, `p.succAbove` is not surjective. -/
+lemma succAbove_not_surjective {n : ℕ} {p : Fin (n + 1)} :
+    ¬Function.Surjective p.succAbove :=
+  fun hs ↦ Fin.exists_succAbove_eq_iff.mp (hs p) rfl
+
+/- open Fin in -/
+/- lemma predAbove_not_right_injective {n : ℕ} (p : Fin (n + 1)) : -/
+/-     ¬Function.Injective p.predAbove := by -/
+/-   intro hn -/
+/-   apply ne_of_lt (castSucc_lt_succ p) -/
+/-   exact hn ((predAbove_castSucc_self p).trans (predAbove_succ_self p).symm) -/
 
 end SuccAbove
 
 open Fin in
 @[reassoc]
 lemma σ_predAbove_comp_σ_predAbove {n : ℕ} {p : Fin (n + 1)} {i j : Fin (n + 2)}
-    (h : i ≤ j) (hp : p.castSucc = i ∨ p.castSucc ≠ j) :
+    (h : i ≤ j) (hp : j = p.castSucc → i = p.castSucc) :
     σ (p.castSucc.predAbove j.succ) ≫ σ (p.predAbove i) =
       σ (p.predAbove i).castSucc ≫ σ (p.predAbove j) := by
   rw [σ_comp_σ (predAbove_le_predAbove p h)]
-  rcases hp with (rfl | hp)
+  obtain rfl | hp := or_iff_not_imp_right.mpr <| hp ∘ not_ne_iff.mp
   · rw [predAbove_castSucc_self, predAbove_succ_of_le _ _ h]
     rcases lt_or_eq_of_le h with (h | rfl)
-    · rw [predAbove_of_castSucc_lt _ _ h, succ_pred]
+    · rw [predAbove_of_castSucc_lt p j h, succ_pred]
     · rw [predAbove_castSucc_self, σ_comp_σ (by rfl)]
   · rcases hp.lt_or_lt with (hp | hp)
-    · rw [predAbove_of_castSucc_lt _ _ hp, succ_pred,
-        predAbove_succ_of_le _ _ (le_of_lt hp)]
-    · rw [predAbove_of_le_castSucc _ _ (le_of_lt hp),
+    · rw [predAbove_of_le_castSucc p j (le_of_lt hp),
         predAbove_succ_of_lt _ _ hp, succ_castPred_eq_castPred_succ]
+    · rw [predAbove_of_castSucc_lt p j hp, succ_pred,
+        predAbove_succ_of_le _ _ (le_of_lt hp)]
 
 open Fin in
 @[reassoc]
@@ -170,15 +190,14 @@ lemma σ_predAbove_zero_comp_σ_predAbove_zero {n : ℕ} {i j : Fin (n + 2)} (h 
       σ (predAbove 0 i.castSucc) ≫ σ (predAbove 0 j) := by
   rw [← castSucc_zero, castSucc_predAbove_castSucc,
     σ_predAbove_comp_σ_predAbove h]
-  cases' i using cases with i
-  · exact Or.inl (by rfl)
-  · exact Or.inr (ne_zero_of_lt (castSucc_lt_iff_succ_le.mpr h)).symm
+  rintro rfl
+  exact le_zero_iff.mp h
 
 lemma SimplexCategory.factor_δ_δ_eq {n : ℕ} (j : Fin (n+2)) :
     factor_δ (δ j) j = 𝟙 _ := by
   dsimp only [factor_δ]
   cases' j using Fin.cases with j
-  · rw [δ_comp_σ_self' (by rfl)]
+  · exact δ_comp_σ_self' (by rfl)
   · rw [Fin.predAbove_zero_succ, δ_comp_σ_succ]
 
 namespace standardSimplex
@@ -225,8 +244,7 @@ lemma δ_factor_δ₂_le {n : ℕ} {m : SimplexCategoryᵒᵖ} (α : Δ[n + 2].o
     OrderHom.coe_mk, Function.comp_apply, ne_eq]
   rcases lt_or_eq_of_le h with (h | rfl)
   · exact hi ∘ (predAbove_eq_lt_iff h _).mp
-  · rw [predAbove_eq_iff, not_or]
-    exact And.intro hi hj
+  · exact not_or.mpr (And.intro hi hj) ∘ (predAbove_eq_self_iff i _).mp
 
 open Fin in
 lemma δ_factor_δ₂_ge {n : ℕ} {m : SimplexCategoryᵒᵖ} (α : Δ[n + 2].obj m)
@@ -244,17 +262,13 @@ lemma δ_factor_δ₂_ge {n : ℕ} {m : SimplexCategoryᵒᵖ} (α : Δ[n + 2].o
   intro k; specialize hi k; specialize hj k
   dsimp [σ]
   rcases lt_or_eq_of_le h with (h | rfl)
-  · rw [predAbove_eq_gt_iff]
-    · exact hj
-    · exact lt_of_le_of_lt (castSucc_le_castSucc_iff.mp (predAbove_le _ _)) h
+  · refine hj ∘ (predAbove_eq_gt_iff ?_ _).mp
+    refine lt_of_le_of_lt ?_ h
+    exact castSucc_le_castSucc_iff.mp <| castSucc_predAbove_le _ _
   · cases' i using cases with i
-    · rw [castSucc_zero] at hi ⊢
-      change ¬predAbove _ (asOrderHom α k) = _
-      rw [predAbove_right_zero, predAbove_eq_iff, not_or]
-      exact And.intro hi hj
-    · rw [← succ_castSucc, predAbove_zero_succ,
-        predAbove_eq_gt_iff (castSucc_lt_succ i)]
-      exact hj
+    · exact not_or.mpr (And.intro hi hj) ∘ (predAbove_eq_self_iff 0 _).mp
+    · rw [← succ_castSucc, predAbove_zero_succ]
+      exact hj ∘ (predAbove_eq_gt_iff (castSucc_lt_succ i) _).mp
 
 def diagram (n : ℕ) : MultispanIndex SSet where
   L := { (i, j) : Fin (n + 2) × Fin (n + 3) | i.castSucc < j }
@@ -301,7 +315,7 @@ abbrev cocone (n : ℕ) : Multicofork (diagram n) := by
     refine {
       app := fun m α ↦ ⟨standardSimplex.map (δ k) |>.app m α, ?_⟩
       naturality := fun a b f ↦ rfl }
-    apply δ_not_surjective k ∘ Function.Surjective.of_comp
+    apply succAbove_not_surjective ∘ Function.Surjective.of_comp
   · intro ⟨⟨i, j⟩, h⟩
     ext m α
     apply Subtype.ext
@@ -336,8 +350,7 @@ noncomputable def isColimit (n : ℕ) : IsColimit (cocone n) := by
   · intro X f h
     ext m α
     simp only [Multicofork.ofπ_pt, ← h (skips α)]
-    apply congr_arg
-    apply Subtype.ext
+    apply congr_arg (f.app m) ∘ Subtype.ext
     exact standardSimplex.factor_δ_spec _ _ (skips_spec α) |>.symm
 
 end SSet
